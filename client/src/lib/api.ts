@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 async function getAuthHeader(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
-    throw new Error('Not authenticated');
+    throw new Error('Not authenticated in Supabase');
   }
   return {
     'Authorization': `Bearer ${session.access_token}`,
@@ -14,9 +14,19 @@ async function getAuthHeader(): Promise<Record<string, string>> {
   };
 }
 
+async function safeFetch(url: string, options: RequestInit) {
+  try {
+    const response = await fetch(url, options);
+    return response;
+  } catch (err: any) {
+    console.error('Fetch network error:', err);
+    throw new Error(`Cannot connect to backend server at ${API_BASE_URL}. Please ensure the Node.js Express server is running on port 5000.`);
+  }
+}
+
 export async function sendChatMessage(message: string, conversationId?: string) {
   const headers = await getAuthHeader();
-  const response = await fetch(`${API_BASE_URL}/chat`, {
+  const response = await safeFetch(`${API_BASE_URL}/chat`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ message, conversationId }),
@@ -37,7 +47,7 @@ export async function sendChatMessage(message: string, conversationId?: string) 
 
 export async function fetchConversations(): Promise<Conversation[]> {
   const headers = await getAuthHeader();
-  const response = await fetch(`${API_BASE_URL}/chat/conversations`, {
+  const response = await safeFetch(`${API_BASE_URL}/chat/conversations`, {
     method: 'GET',
     headers,
   });
@@ -52,7 +62,7 @@ export async function fetchConversations(): Promise<Conversation[]> {
 
 export async function fetchConversationMessages(conversationId: string): Promise<{ conversation: Conversation; messages: Message[] }> {
   const headers = await getAuthHeader();
-  const response = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}`, {
+  const response = await safeFetch(`${API_BASE_URL}/chat/conversations/${conversationId}`, {
     method: 'GET',
     headers,
   });
@@ -70,7 +80,7 @@ export async function fetchConversationMessages(conversationId: string): Promise
 
 export async function deleteConversation(conversationId: string): Promise<void> {
   const headers = await getAuthHeader();
-  const response = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}`, {
+  const response = await safeFetch(`${API_BASE_URL}/chat/conversations/${conversationId}`, {
     method: 'DELETE',
     headers,
   });
@@ -83,7 +93,7 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 
 export async function fetchDashboardStats(): Promise<{ totalConversations: number }> {
   const headers = await getAuthHeader();
-  const response = await fetch(`${API_BASE_URL}/chat/stats`, {
+  const response = await safeFetch(`${API_BASE_URL}/chat/stats`, {
     method: 'GET',
     headers,
   });
