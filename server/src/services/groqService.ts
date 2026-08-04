@@ -1,4 +1,4 @@
-import { ai } from '../config/gemini';
+import { groq } from '../config/groq';
 import { supabaseAdmin } from '../config/supabase';
 
 export interface ChatServiceResponse {
@@ -36,7 +36,6 @@ export const processChatMessage = async (
       .single();
 
     if (error || !conv) {
-      // If conversation not found, create new one
       activeConversationId = undefined;
     } else {
       conversationTitle = conv.title;
@@ -44,7 +43,6 @@ export const processChatMessage = async (
   }
 
   if (!activeConversationId) {
-    // Generate a title based on the user prompt
     const initialTitle = userPrompt.length > 35 ? userPrompt.substring(0, 35) + '...' : userPrompt;
     const { data: newConv, error: createErr } = await supabaseAdmin
       .from('conversations')
@@ -87,45 +85,46 @@ export const processChatMessage = async (
     .order('created_at', { ascending: true })
     .limit(30);
 
-  // 4. Construct content payload for @google/genai SDK
-  const formattedContents = (historyMsgs || []).map((msg) => ({
-    role: msg.role === 'user' ? 'user' : 'model',
-    parts: [{ text: msg.content }],
-  }));
+  // 4. Map message history to Groq chat completions format
+  const formattedMessages = [
+    {
+      role: 'system' as const,
+      content: 'You are AskFlow AI, an intelligent, helpful, polite, and precise AI assistant. Format code snippets cleanly in Markdown when appropriate.',
+    },
+    ...(historyMsgs || []).map((msg) => ({
+      role: (msg.role === 'model' || msg.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+      content: msg.content,
+    })),
+  ];
 
-  // If no API key configured, throw helpful error
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured on the server. Please check server .env settings.');
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY is not configured on the server. Please check server .env settings.');
   }
 
-  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-
+  const modelName = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
   let aiResponseText = '';
   try {
-    const response = await ai.models.generateContent({
+    const response = await groq.chat.completions.create({
       model: modelName,
-      contents: formattedContents,
-      config: {
-        systemInstruction: 'You are AskFlow AI, an intelligent, helpful, polite, and precise AI assistant. Format code snippets cleanly in Markdown when appropriate.',
-      },
+      messages: formattedMessages,
     });
 
-    aiResponseText = response.text || 'I could not process your request at this moment.';
+    aiResponseText = response.choices[0]?.message?.content || 'I could not process your request at this moment.';
   } catch (apiError: any) {
-    console.error('Gemini API Error:', apiError);
-    // Fallback attempt with gemini-2.0-flash-lite if the selected model fails
+    console.error('Groq API Error:', apiError);
+    // Fallback attempt with llama-3.1-8b-instant if the selected model fails
     try {
-      const fallbackResponse = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-lite',
-        contents: formattedContents,
+      const fallbackResponse = await groq.chat.completions.create({
+        model: 'llama-3.1-8b-instant',
+        messages: formattedMessages,
       });
-      aiResponseText = fallbackResponse.text || 'Response received from backup model.';
+      aiResponseText = fallbackResponse.choices[0]?.message?.content || 'Response received from backup model.';
     } catch (fallbackError: any) {
-      throw new Error(`Gemini API Error: ${apiError?.message || 'Failed to call Gemini API'}`);
+      throw new Error(`Groq API Error: ${apiError?.message || 'Failed to call Groq API'}`);
     }
   }
 
-  // 5. Insert AI message into Supabase
+  // 5. Insert AI message into Supabase as role: 'model' for compatibility
   const { data: aiMsg, error: aiMsgErr } = await supabaseAdmin
     .from('messages')
     .insert({

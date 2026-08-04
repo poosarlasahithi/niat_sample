@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticateUser, AuthenticatedRequest } from '../middleware/auth';
 import { chatMessageSchema } from '../utils/validation';
-import { processChatMessage } from '../services/geminiService';
+import { processChatMessage } from '../services/groqService';
 import { supabaseAdmin } from '../config/supabase';
 
 const router = Router();

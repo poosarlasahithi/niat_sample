@@ -65,7 +65,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
     app: 'AskFlow AI Backend Server',
     timestamp: new Date().toISOString(),
     env: {
-      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+      hasGroqKey: Boolean(process.env.GROQ_API_KEY),
       hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
     },
   });
