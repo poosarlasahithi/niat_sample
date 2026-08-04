@@ -98,10 +98,12 @@ export const processChatMessage = async (
     throw new Error('GEMINI_API_KEY is not configured on the server. Please check server .env settings.');
   }
 
+  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
   let aiResponseText = '';
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: modelName,
       contents: formattedContents,
       config: {
         systemInstruction: 'You are AskFlow AI, an intelligent, helpful, polite, and precise AI assistant. Format code snippets cleanly in Markdown when appropriate.',
@@ -111,10 +113,10 @@ export const processChatMessage = async (
     aiResponseText = response.text || 'I could not process your request at this moment.';
   } catch (apiError: any) {
     console.error('Gemini API Error:', apiError);
-    // Fallback attempt with gemini-1.5-flash if gemini-2.5-flash is not available
+    // Fallback attempt with gemini-2.0-flash-lite if the selected model fails
     try {
       const fallbackResponse = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: formattedContents,
       });
       aiResponseText = fallbackResponse.text || 'Response received from backup model.';
