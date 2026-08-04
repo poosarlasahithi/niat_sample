@@ -26,7 +26,39 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health Check Endpoint
+// Health Check & System Information Endpoints
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    app: 'AskFlow AI Backend Server',
+    message: 'Welcome to AskFlow AI API',
+    endpoints: {
+      health: '/api/health',
+      chat: '/api/chat',
+      conversations: '/api/chat/conversations',
+      stats: '/api/chat/stats',
+    },
+  });
+});
+
+app.get('/api', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    app: 'AskFlow AI Backend Server',
+    message: 'AskFlow AI API v1',
+    endpoints: {
+      health: '/api/health',
+      chat: '/api/chat',
+      conversations: '/api/chat/conversations',
+      stats: '/api/chat/stats',
+    },
+  });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
+  res.redirect('/api/health');
+});
+
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -39,12 +71,27 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
-// Chat API Routes
+// Chat API Routes (mounted under both /api/chat and /chat for URL flexibility)
 app.use('/api/chat', chatRoutes);
+app.use('/chat', chatRoutes);
 
 // 404 Route Handler
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Endpoint not found' });
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    error: 'Endpoint not found',
+    requestedPath: req.originalUrl,
+    method: req.method,
+    availableEndpoints: [
+      'GET /',
+      'GET /api',
+      'GET /api/health',
+      'POST /api/chat',
+      'GET /api/chat/conversations',
+      'GET /api/chat/conversations/:id',
+      'DELETE /api/chat/conversations/:id',
+      'GET /api/chat/stats',
+    ],
+  });
 });
 
 // Global Error Handler
@@ -61,3 +108,4 @@ app.listen(PORT, () => {
   console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
   console.log(`===========================================`);
 });
+
